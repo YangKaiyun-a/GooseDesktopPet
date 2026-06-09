@@ -3,6 +3,7 @@ import json
 import math
 import os
 import sys
+import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +14,7 @@ from PIL import Image, ImageDraw
 
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
-BUILTIN_BACKENDS = ("grabcut", "background-diff", "rembg")
+BUILTIN_BACKENDS = ("grabcut", "background-diff", "rembg", "rvm")
 
 
 @dataclass
@@ -33,6 +34,37 @@ class SegmentationBackend(ABC):
     @abstractmethod
     def alpha(self, bgr: np.ndarray) -> np.ndarray:
         raise NotImplementedError
+
+    def extract(self, video: Path, state: str, args: argparse.Namespace) -> list[ExtractedFrame]:
+        cap = cv2.VideoCapture(str(video))
+        if not cap.isOpened():
+            raise RuntimeError(f"Could not open video: {video}")
+
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        source_fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
+        indices = sample_indices(frame_count, source_fps, args.fps, args.max_frames)
+        sampled_frames: list[np.ndarray] = []
+        for source_index in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, source_index)
+            ok, bgr = cap.read()
+            if ok:
+                sampled_frames.append(bgr)
+
+        self.prepare(video, sampled_frames)
+        extracted: list[ExtractedFrame] = []
+        for output_index, bgr in enumerate(sampled_frames):
+            alpha = self.alpha(bgr)
+            bbox = frame_bbox(alpha, args.pad)
+            if bbox is None:
+                continue
+            rgba = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGBA)
+            rgba[:, :, 3] = alpha
+            extracted.append(ExtractedFrame(state=state, index=output_index, rgba=rgba, bbox=bbox))
+
+        cap.release()
+        if not extracted:
+            raise RuntimeError(f"No foreground frames extracted from: {video}")
+        return extracted
 
 
 class GrabCutBackend(SegmentationBackend):
@@ -122,6 +154,102 @@ class RembgBackend(SegmentationBackend):
         return filter_components(alpha, self.min_component_area)
 
 
+class RobustVideoMattingBackend(SegmentationBackend):
+    name = "rvm"
+
+    def __init__(
+        self,
+        repo: Path,
+        checkpoint: Path,
+        variant: str,
+        device: str,
+        downsample_ratio: float | None,
+        seq_chunk: int,
+        min_component_area: int,
+        clean_floor_marker: bool,
+    ) -> None:
+        if not repo.exists():
+            raise RuntimeError(f"RobustVideoMatting repo not found: {repo}")
+        if not checkpoint.exists():
+            raise RuntimeError(
+                "RVM checkpoint not found. Download rvm_mobilenetv3.pth or rvm_resnet50.pth "
+                f"and pass it with --rvm-checkpoint. Missing: {checkpoint}"
+            )
+        self.repo = repo
+        self.checkpoint = checkpoint
+        self.variant = variant
+        self.device = device
+        self.downsample_ratio = downsample_ratio
+        self.seq_chunk = seq_chunk
+        self.min_component_area = min_component_area
+        self.clean_floor_marker = clean_floor_marker
+
+    def alpha(self, bgr: np.ndarray) -> np.ndarray:
+        raise NotImplementedError("RVM processes whole videos; call extract instead.")
+
+    def extract(self, video: Path, state: str, args: argparse.Namespace) -> list[ExtractedFrame]:
+        repo_path = str(self.repo.resolve())
+        if repo_path not in sys.path:
+            sys.path.insert(0, repo_path)
+        try:
+            import torch
+            from inference import convert_video
+            from model import MattingNetwork
+        except ImportError as exc:
+            raise RuntimeError(
+                "The RVM backend requires PyTorch and RobustVideoMatting inference dependencies. "
+                "Install RobustVideoMatting/requirements_inference.txt in the Python environment."
+            ) from exc
+
+        cap = cv2.VideoCapture(str(video))
+        if not cap.isOpened():
+            raise RuntimeError(f"Could not open video: {video}")
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        source_fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
+        cap.release()
+
+        with tempfile.TemporaryDirectory(prefix=f"rvm_{state}_") as temp:
+            frames_dir = Path(temp) / "rgba"
+            model = MattingNetwork(self.variant).eval().to(self.device)
+            state_dict = torch.load(self.checkpoint, map_location=self.device)
+            model.load_state_dict(state_dict)
+            convert_video(
+                model,
+                input_source=str(video),
+                downsample_ratio=self.downsample_ratio,
+                output_type="png_sequence",
+                output_composition=str(frames_dir),
+                seq_chunk=self.seq_chunk,
+                progress=not args.disable_progress,
+                device=self.device,
+            )
+
+            frame_paths = sorted(frames_dir.glob("*.png"))
+            if not frame_paths:
+                raise RuntimeError(f"RVM did not write any RGBA frames for: {video}")
+
+            indices = sample_indices(len(frame_paths) or frame_count, source_fps, args.fps, args.max_frames)
+            extracted: list[ExtractedFrame] = []
+            for output_index, source_index in enumerate(indices):
+                if source_index >= len(frame_paths):
+                    continue
+                rgba = np.array(Image.open(frame_paths[source_index]).convert("RGBA"))
+                bgr = cv2.cvtColor(rgba[:, :, :3], cv2.COLOR_RGB2BGR)
+                alpha = rgba[:, :, 3]
+                if self.clean_floor_marker:
+                    alpha = remove_floor_marker(alpha, bgr)
+                alpha = filter_components(alpha, self.min_component_area)
+                bbox = frame_bbox(alpha, args.pad)
+                if bbox is None:
+                    continue
+                rgba[:, :, 3] = alpha
+                extracted.append(ExtractedFrame(state=state, index=output_index, rgba=rgba, bbox=bbox))
+
+        if not extracted:
+            raise RuntimeError(f"No foreground frames extracted from RVM output: {video}")
+        return extracted
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Extract transparent desktop-pet animation states from videos."
@@ -148,6 +276,39 @@ def parse_args() -> argparse.Namespace:
         "--rembg-model",
         default="u2net",
         help="rembg model name, for example u2net, u2netp, birefnet_general_lite, dis_anime.",
+    )
+    parser.add_argument(
+        "--rvm-repo",
+        default="../RobustVideoMatting",
+        help="Path to the external RobustVideoMatting repository.",
+    )
+    parser.add_argument(
+        "--rvm-checkpoint",
+        default="models/rvm/rvm_mobilenetv3.pth",
+        help="Path to a RobustVideoMatting .pth checkpoint.",
+    )
+    parser.add_argument(
+        "--rvm-variant",
+        default="mobilenetv3",
+        choices=("mobilenetv3", "resnet50"),
+        help="RVM model variant.",
+    )
+    parser.add_argument(
+        "--rvm-device",
+        default="cpu",
+        help="Torch device for RVM inference, for example cpu or cuda.",
+    )
+    parser.add_argument(
+        "--rvm-downsample-ratio",
+        type=float,
+        default=None,
+        help="RVM downsample ratio. Leave unset for RVM auto mode.",
+    )
+    parser.add_argument(
+        "--rvm-seq-chunk",
+        type=int,
+        default=1,
+        help="Number of frames RVM processes per chunk.",
     )
     parser.add_argument(
         "--fps",
@@ -184,6 +345,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable removal of green floor selection markers near the feet.",
     )
+    parser.add_argument(
+        "--disable-progress",
+        action="store_true",
+        help="Disable progress bars for plugin backends.",
+    )
     return parser.parse_args()
 
 
@@ -211,6 +377,17 @@ def create_backend(args: argparse.Namespace) -> SegmentationBackend:
     if args.backend == "rembg":
         return RembgBackend(
             args.rembg_model,
+            args.min_component_area,
+            clean_floor_marker=not args.no_clean_floor_marker,
+        )
+    if args.backend == "rvm":
+        return RobustVideoMattingBackend(
+            Path(args.rvm_repo).resolve(),
+            Path(args.rvm_checkpoint).resolve(),
+            args.rvm_variant,
+            args.rvm_device,
+            args.rvm_downsample_ratio,
+            args.rvm_seq_chunk,
             args.min_component_area,
             clean_floor_marker=not args.no_clean_floor_marker,
         )
@@ -350,36 +527,7 @@ def extract_video(
     args: argparse.Namespace,
     backend: SegmentationBackend,
 ) -> list[ExtractedFrame]:
-    cap = cv2.VideoCapture(str(video))
-    if not cap.isOpened():
-        raise RuntimeError(f"Could not open video: {video}")
-
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-    source_fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
-    indices = sample_indices(frame_count, source_fps, args.fps, args.max_frames)
-    sampled_frames: list[np.ndarray] = []
-    for source_index in indices:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, source_index)
-        ok, bgr = cap.read()
-        if ok:
-            sampled_frames.append(bgr)
-
-    backend.prepare(video, sampled_frames)
-    extracted: list[ExtractedFrame] = []
-
-    for output_index, bgr in enumerate(sampled_frames):
-        alpha = backend.alpha(bgr)
-        bbox = frame_bbox(alpha, args.pad)
-        if bbox is None:
-            continue
-        rgba = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGBA)
-        rgba[:, :, 3] = alpha
-        extracted.append(ExtractedFrame(state=state, index=output_index, rgba=rgba, bbox=bbox))
-
-    cap.release()
-    if not extracted:
-        raise RuntimeError(f"No foreground frames extracted from: {video}")
-    return extracted
+    return backend.extract(video, state, args)
 
 
 def normalize_frames_by_state(
@@ -489,6 +637,21 @@ def write_contact_sheet(output_dir: Path, states: dict[str, list[Image.Image]]) 
     return path
 
 
+def backend_options(args: argparse.Namespace) -> dict:
+    if args.backend == "rembg":
+        return {"rembg_model": args.rembg_model}
+    if args.backend == "rvm":
+        return {
+            "rvm_repo": args.rvm_repo,
+            "rvm_checkpoint": args.rvm_checkpoint,
+            "rvm_variant": args.rvm_variant,
+            "rvm_device": args.rvm_device,
+            "rvm_downsample_ratio": args.rvm_downsample_ratio,
+            "rvm_seq_chunk": args.rvm_seq_chunk,
+        }
+    return {}
+
+
 def main() -> None:
     args = parse_args()
     input_dir = Path(args.input_dir).resolve()
@@ -514,7 +677,7 @@ def main() -> None:
         "canvas": canvas,
         "target_fps": args.fps,
         "backend": args.backend,
-        "backend_options": {"rembg_model": args.rembg_model} if args.backend == "rembg" else {},
+        "backend_options": backend_options(args),
         "states": [],
     }
     for state, images in normalized_by_state.items():

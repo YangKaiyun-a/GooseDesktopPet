@@ -6,3 +6,8 @@ pillow>=12
 opencv-python>=4.10
 rembg>=2.0
 onnxruntime>=1.20
+
+# Optional external plugin backend:
+# RobustVideoMatting is intentionally not bundled into the WPF app.
+# Install its own requirements in a separate Python environment when using --backend rvm.
+# See F:\workspace_github\RobustVideoMatting\requirements_inference.txt.

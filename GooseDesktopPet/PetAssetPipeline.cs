@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace GooseDesktopPet;
 
 public enum PetSegmentationBackend
@@ -6,6 +8,7 @@ public enum PetSegmentationBackend
     External,
     GrabCut,
     Rembg,
+    RobustVideoMatting,
     CustomModel
 }
 
@@ -27,6 +30,57 @@ public sealed record PetImportResult(
 public interface IPetSegmentationService
 {
     Task SegmentAsync(string sourceVideoPath, string outputVideoOrFramesPath, CancellationToken cancellationToken);
+}
+
+public sealed record ExternalPetToolPlugin(
+    string Id,
+    PetSegmentationBackend Backend,
+    string ExecutablePath,
+    string ArgumentsTemplate,
+    string WorkingDirectory);
+
+public sealed class ExternalProcessSegmentationService(ExternalPetToolPlugin plugin) : IPetSegmentationService
+{
+    public async Task SegmentAsync(
+        string sourceVideoPath,
+        string outputVideoOrFramesPath,
+        CancellationToken cancellationToken)
+    {
+        var arguments = plugin.ArgumentsTemplate
+            .Replace("{input}", Quote(sourceVideoPath), StringComparison.OrdinalIgnoreCase)
+            .Replace("{output}", Quote(outputVideoOrFramesPath), StringComparison.OrdinalIgnoreCase);
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = plugin.ExecutablePath,
+            Arguments = arguments,
+            WorkingDirectory = plugin.WorkingDirectory,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true
+        };
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException($"Could not start pet tool plugin: {plugin.Id}");
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+
+        if (process.ExitCode != 0)
+        {
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+            throw new InvalidOperationException(
+                $"Pet tool plugin '{plugin.Id}' failed with exit code {process.ExitCode}.\n{stdout}\n{stderr}");
+        }
+    }
+
+    private static string Quote(string value)
+    {
+        return "\"" + value.Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+    }
 }
 
 public interface IPetAssetImporter
