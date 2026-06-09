@@ -1,0 +1,28 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# Python local dependencies and caches
+.python-deps/
+**/__pycache__/
+*.py[cod]
+
+# Local AI model weights and downloaded tools
+models/
+
+# Experimental extraction outputs. The checked-in runtime pet lives in GooseDesktopPet/Assets/Pet.
+extracted_assets*/
+transparent_webm_assets*/
+
+# Local source videos used while tuning the sample pet
+*.mp4
+*.webm
+
+# OS / editor noise
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+Thumbs.db
+Desktop.ini

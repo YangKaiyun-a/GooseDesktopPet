@@ -1,0 +1,167 @@
+{
+  "source_dir": ".",
+  "importer": "transparent-webm",
+  "canvas": {
+    "width": 501,
+    "height": 623,
+    "align_mode": "frame",
+    "scale_mode": "state-height",
+    "reference_height": 556,
+    "scale_by_state": {
+      "idle": 1.0,
+      "action_1": 1.379652605459057,
+      "action_2": 1.2900232018561484
+    },
+    "preserve_y_states": [
+      "action_2"
+    ]
+  },
+  "target_fps": 12.0,
+  "align_mode": "frame",
+  "scale_mode": "state-height",
+  "flipped_states": [
+    "action_2"
+  ],
+  "drop_last_frame": true,
+  "drop_outlier_frames": true,
+  "preserve_y_states": [
+    "action_2"
+  ],
+  "stabilize_marker_x_states": [
+    "action_1"
+  ],
+  "stabilized_marker_x": {
+    "action_1": 220.08644925499016
+  },
+  "trim_leading_frames": {
+    "action_2": 6
+  },
+  "states": [
+    {
+      "state": "idle",
+      "frame_count": 35,
+      "frames_dir": "states/idle/frames",
+      "preview": "states/idle/idle_preview.gif",
+      "frames": [
+        "states/idle/frames/idle_000.png",
+        "states/idle/frames/idle_001.png",
+        "states/idle/frames/idle_002.png",
+        "states/idle/frames/idle_003.png",
+        "states/idle/frames/idle_004.png",
+        "states/idle/frames/idle_005.png",
+        "states/idle/frames/idle_006.png",
+        "states/idle/frames/idle_007.png",
+        "states/idle/frames/idle_008.png",
+        "states/idle/frames/idle_009.png",
+        "states/idle/frames/idle_010.png",
+        "states/idle/frames/idle_011.png",
+        "states/idle/frames/idle_012.png",
+        "states/idle/frames/idle_013.png",
+        "states/idle/frames/idle_014.png",
+        "states/idle/frames/idle_015.png",
+        "states/idle/frames/idle_016.png",
+        "states/idle/frames/idle_017.png",
+        "states/idle/frames/idle_018.png",
+        "states/idle/frames/idle_019.png",
+        "states/idle/frames/idle_020.png",
+        "states/idle/frames/idle_021.png",
+        "states/idle/frames/idle_022.png",
+        "states/idle/frames/idle_023.png",
+        "states/idle/frames/idle_024.png",
+        "states/idle/frames/idle_025.png",
+        "states/idle/frames/idle_026.png",
+        "states/idle/frames/idle_027.png",
+        "states/idle/frames/idle_028.png",
+        "states/idle/frames/idle_029.png",
+        "states/idle/frames/idle_030.png",
+        "states/idle/frames/idle_031.png",
+        "states/idle/frames/idle_032.png",
+        "states/idle/frames/idle_033.png",
+        "states/idle/frames/idle_034.png"
+      ]
+    },
+    {
+      "state": "action_1",
+      "frame_count": 45,
+      "frames_dir": "states/action_1/frames",
+      "preview": "states/action_1/action_1_preview.gif",
+      "frames": [
+        "states/action_1/frames/action_1_000.png",
+        "states/action_1/frames/action_1_001.png",
+        "states/action_1/frames/action_1_002.png",
+        "states/action_1/frames/action_1_003.png",
+        "states/action_1/frames/action_1_004.png",
+        "states/action_1/frames/action_1_005.png",
+        "states/action_1/frames/action_1_006.png",
+        "states/action_1/frames/action_1_007.png",
+        "states/action_1/frames/action_1_008.png",
+        "states/action_1/frames/action_1_009.png",
+        "states/action_1/frames/action_1_010.png",
+        "states/action_1/frames/action_1_011.png",
+        "states/action_1/frames/action_1_012.png",
+        "states/action_1/frames/action_1_013.png",
+        "states/action_1/frames/action_1_014.png",
+        "states/action_1/frames/action_1_015.png",
+        "states/action_1/frames/action_1_016.png",
+        "states/action_1/frames/action_1_017.png",
+        "states/action_1/frames/action_1_018.png",
+        "states/action_1/frames/action_1_019.png",
+        "states/action_1/frames/action_1_020.png",
+        "states/action_1/frames/action_1_021.png",
+        "states/action_1/frames/action_1_022.png",
+        "states/action_1/frames/action_1_023.png",
+        "states/action_1/frames/action_1_024.png",
+        "states/action_1/frames/action_1_025.png",
+        "states/action_1/frames/action_1_026.png",
+        "states/action_1/frames/action_1_027.png",
+        "states/action_1/frames/action_1_028.png",
+        "states/action_1/frames/action_1_029.png",
+        "states/action_1/frames/action_1_030.png",
+        "states/action_1/frames/action_1_031.png",
+        "states/action_1/frames/action_1_032.png",
+        "states/action_1/frames/action_1_033.png",
+        "states/action_1/frames/action_1_034.png",
+        "states/action_1/frames/action_1_035.png",
+        "states/action_1/frames/action_1_036.png",
+        "states/action_1/frames/action_1_037.png",
+        "states/action_1/frames/action_1_038.png",
+        "states/action_1/frames/action_1_039.png",
+        "states/action_1/frames/action_1_040.png",
+        "states/action_1/frames/action_1_041.png",
+        "states/action_1/frames/action_1_042.png",
+        "states/action_1/frames/action_1_043.png",
+        "states/action_1/frames/action_1_044.png"
+      ]
+    },
+    {
+      "state": "action_2",
+      "frame_count": 21,
+      "frames_dir": "states/action_2/frames",
+      "preview": "states/action_2/action_2_preview.gif",
+      "frames": [
+        "states/action_2/frames/action_2_000.png",
+        "states/action_2/frames/action_2_001.png",
+        "states/action_2/frames/action_2_002.png",
+        "states/action_2/frames/action_2_003.png",
+        "states/action_2/frames/action_2_004.png",
+        "states/action_2/frames/action_2_005.png",
+        "states/action_2/frames/action_2_006.png",
+        "states/action_2/frames/action_2_007.png",
+        "states/action_2/frames/action_2_008.png",
+        "states/action_2/frames/action_2_009.png",
+        "states/action_2/frames/action_2_010.png",
+        "states/action_2/frames/action_2_011.png",
+        "states/action_2/frames/action_2_012.png",
+        "states/action_2/frames/action_2_013.png",
+        "states/action_2/frames/action_2_014.png",
+        "states/action_2/frames/action_2_015.png",
+        "states/action_2/frames/action_2_016.png",
+        "states/action_2/frames/action_2_017.png",
+        "states/action_2/frames/action_2_018.png",
+        "states/action_2/frames/action_2_019.png",
+        "states/action_2/frames/action_2_020.png"
+      ]
+    }
+  ],
+  "contact_sheet": "_qa/contact-sheet.png"
+}

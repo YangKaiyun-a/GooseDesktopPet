@@ -1,0 +1,8 @@
+imageio-ffmpeg>=0.6
+pillow>=12
+
+# Optional segmentation backends used by scripts/extract_pet_states.py.
+# Install only if you want to experiment with AI matting locally.
+opencv-python>=4.10
+rembg>=2.0
+onnxruntime>=1.20

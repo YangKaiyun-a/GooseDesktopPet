@@ -1,0 +1,29 @@
+<Window x:Class="GooseDesktopPet.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Goose Desktop Pet"
+        Width="245"
+        Height="308"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        SizeToContent="Manual"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        WindowStyle="None">
+    <Grid x:Name="PetSurface"
+          Background="Transparent"
+          MouseLeftButtonDown="PetSurface_MouseLeftButtonDown"
+          MouseLeftButtonUp="PetSurface_MouseLeftButtonUp"
+          MouseMove="PetSurface_MouseMove"
+          MouseRightButtonUp="PetSurface_MouseRightButtonUp">
+        <Image x:Name="PetImage"
+               RenderOptions.BitmapScalingMode="HighQuality"
+               SnapsToDevicePixels="True"
+               Stretch="Uniform" />
+    </Grid>
+</Window>
