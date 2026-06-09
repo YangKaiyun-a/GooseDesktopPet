@@ -13,6 +13,7 @@ models/
 # Experimental extraction outputs. The checked-in runtime pet lives in GooseDesktopPet/Assets/Pet.
 extracted_assets*/
 transparent_webm_assets*/
+test_outputs/
 
 # Local source videos used while tuning the sample pet
 *.mp4
